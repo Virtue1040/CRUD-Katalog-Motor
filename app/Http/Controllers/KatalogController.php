@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreKatalogRequest;
 use App\Http\Requests\UpdateKatalogRequest;
+use Illuminate\Http\Request;
 use App\Models\Katalog;
 
 class KatalogController extends Controller
@@ -13,15 +14,42 @@ class KatalogController extends Controller
      */
     public function index()
     {
-        //
+        $user = auth('sanctum')->user();
+
+        $katalog = $user
+            ? Katalog::where('id_user', null)->orWhere('id_user', $user->id_user)->get()
+            : Katalog::where('id_user', null)->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data katalog berhasil dimuat',
+            'data' => $katalog->map(function ($item) use ($user) {
+                return [
+                    'id_katalog' => $item->id_katalog,
+                    'judul' => $item->judul,
+                    'manufacturer' => $item->manufacturer,
+                    'harga' => $item->harga,
+                    'mine' => $user && $item->id_user === $user->id_user ? "1" : "0"
+                ];
+            })
+        ]);
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Display the image file associated with the katalog.
      */
-    public function create()
+    public function getImage($id_katalog)
     {
-        //
+        $katalog = Katalog::find($id_katalog);
+
+        if ($katalog && file_exists(public_path($katalog->imageUrl))) {
+            return response()->file(public_path($katalog->imageUrl));
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gambar katalog tidak ditemukan',
+        ], 404);
     }
 
     /**
@@ -29,38 +57,103 @@ class KatalogController extends Controller
      */
     public function store(StoreKatalogRequest $request)
     {
-        //
-    }
+        $request->validate([
+            "judul" => ["required", "string", "max:255"],
+            "manufacturer" => ["required", "string", "max:255"],
+            "harga" => ["required", "numeric"],
+            "image" => ["required", "image"],
+        ]);
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Katalog $katalog)
-    {
-        //
-    }
+        $image = $request->file('image');
+        $filename = 'image_' . time() . '.' . $image->getClientOriginalExtension();
+        $image->move(public_path('upload'), $filename);
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Katalog $katalog)
-    {
-        //
+        Katalog::create([
+            "judul" => $request->judul,
+            "manufacturer" => $request->manufacturer,
+            "harga" => $request->harga,
+            "imageUrl" => "upload/$filename",
+            "id_user" => $request->user()->id_user
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Katalog baru berhasil ditambahkan',
+        ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateKatalogRequest $request, Katalog $katalog)
+    public function update(UpdateKatalogRequest $request, $id_katalog)
     {
-        //
+        $request->validate([
+            "judul" => ["required", "string", "max:255"],
+            "manufacturer" => ["required", "string", "max:255"],
+            "harga" => ["required", "numeric"],
+            "image" => ["image"],
+        ]);
+
+        $katalog = Katalog::find($id_katalog);
+
+        if (!$katalog) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data katalog tidak ditemukan',
+            ]);
+        }
+
+        if ($katalog->id_user !== $request->user()->id_user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak diizinkan mengedit katalog ini',
+            ]);
+        }
+
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $filename = 'image_' . time() . '.' . $image->getClientOriginalExtension();
+            $image->move(public_path('upload'), $filename);
+            $katalog->imageUrl = "upload/$filename";
+        }
+
+        $katalog->judul = $request->judul;
+        $katalog->manufacturer = $request->manufacturer;
+        $katalog->harga = $request->harga;
+        $katalog->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Katalog berhasil diperbarui',
+        ]);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Katalog $katalog)
+    public function destroy(Request $request, $id_katalog)
     {
-        //
+        $katalog = Katalog::find($id_katalog);
+
+        if (!$katalog) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Katalog tidak ditemukan dalam sistem',
+            ]);
+        }
+
+        if ($katalog->id_user !== $request->user()->id_user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses untuk menghapus katalog ini',
+            ]);
+        }
+
+        $katalog->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Katalog berhasil dihapus dari sistem',
+        ]);
     }
 }

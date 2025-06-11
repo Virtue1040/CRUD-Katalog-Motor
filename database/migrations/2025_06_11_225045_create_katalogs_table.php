@@ -12,7 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('katalogs', function (Blueprint $table) {
-            $table->id();
+            $table->bigInteger("id_katalog", 1)->primary();
+            $table->bigInteger("id_user")->nullable();
+            $table->string('judul');
+            $table->string('manufacturer');
+            $table->double('harga');
+            $table->string("imageUrl");
+
+            $table->foreign('id_user')->references('id_user')->on('users');
             $table->timestamps();
         });
     }
