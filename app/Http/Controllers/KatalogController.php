@@ -20,19 +20,15 @@ class KatalogController extends Controller
             ? Katalog::where('id_user', null)->orWhere('id_user', $user->id_user)->get()
             : Katalog::where('id_user', null)->get();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Data katalog berhasil dimuat',
-            'data' => $katalog->map(function ($item) use ($user) {
-                return [
-                    'id_katalog' => $item->id_katalog,
-                    'judul' => $item->judul,
-                    'manufacturer' => $item->manufacturer,
-                    'harga' => $item->harga,
-                    'mine' => $user && $item->id_user === $user->id_user ? "1" : "0"
-                ];
-            })
-        ]);
+        return $katalog->map(function ($item) use ($user) {
+            return [
+                'id_katalog' => $item->id_katalog,
+                'judul' => $item->judul,
+                'manufacturer' => $item->manufacturer,
+                'harga' => $item->harga,
+                'mine' => $user && $item->id_user === $user->id_user ? "1" : "0"
+            ];
+        });
     }
 
     /**
@@ -47,7 +43,7 @@ class KatalogController extends Controller
         }
 
         return response()->json([
-            'success' => false,
+            'status' => 'error',
             'message' => 'Gambar katalog tidak ditemukan',
         ], 404);
     }
@@ -77,7 +73,7 @@ class KatalogController extends Controller
         ]);
 
         return response()->json([
-            'success' => true,
+            'status' => 'success',
             'message' => 'Katalog baru berhasil ditambahkan',
         ]);
     }
@@ -98,14 +94,14 @@ class KatalogController extends Controller
 
         if (!$katalog) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Data katalog tidak ditemukan',
             ]);
         }
 
         if ($katalog->id_user !== $request->user()->id_user) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Anda tidak diizinkan mengedit katalog ini',
             ]);
         }
@@ -123,7 +119,7 @@ class KatalogController extends Controller
         $katalog->save();
 
         return response()->json([
-            'success' => true,
+            'status' => 'success',
             'message' => 'Katalog berhasil diperbarui',
         ]);
     }
@@ -137,14 +133,14 @@ class KatalogController extends Controller
 
         if (!$katalog) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Katalog tidak ditemukan dalam sistem',
             ]);
         }
 
         if ($katalog->id_user !== $request->user()->id_user) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Anda tidak memiliki akses untuk menghapus katalog ini',
             ]);
         }
@@ -152,7 +148,7 @@ class KatalogController extends Controller
         $katalog->delete();
 
         return response()->json([
-            'success' => true,
+            'status' => 'success',
             'message' => 'Katalog berhasil dihapus dari sistem',
         ]);
     }
